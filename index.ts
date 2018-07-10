@@ -51,33 +51,34 @@ function getPointViewCoord(viewport: vec2, cam: vec3, target: vec3, pt: vec3) {
     const CT = target0
 
     // 3 - get rotation to align CT  on (0,0,1), and build a matrix with it 
-    // const v001 = vec3.fromValues(0, 0, 1)
-    const xangle = vec3.angle(xAxis, CT) + d2r(90)
-    const yangle = vec3.angle(yAxis, CT) + d2r(90)
-    // const normal = vec3.cross(vec3.create(), v001, CT)
-    const rotMatX = mat4.fromRotation(mat4.create(), -yangle, xAxis)
-    const rotMatZ = mat4.fromRotation(mat4.create(), -xangle, yAxis)
-    const rotMat = mat4.mul(mat4.create(), rotMatX, rotMatZ)
+    // const xangle = vec3.angle(xAxis, CT) + d2r(90)
+    // const yangle = vec3.angle(yAxis, CT) + d2r(90)
+    // const rotMatX = mat4.fromRotation(mat4.create(), -yangle, xAxis)
+    // const rotMatZ = mat4.fromRotation(mat4.create(), -xangle, yAxis)
+    // const rotMat = mat4.mul(mat4.create(), rotMatX, rotMatZ)
+    const angle = vec3.angle(CT, zAxis)
+    const normal = vec3.cross(vec3.create(), zAxis, CT)
+    const rotMat = mat4.fromRotation(mat4.create(), -angle, normal)
 
-    console.group('R')
-    const a = vec3.transformMat4(vec3.create(), pt0, rotMatX)
-    const b = vec3.transformMat4(vec3.create(), a, rotMatZ)
-    const c = vec3.transformMat4(vec3.create(), pt0, rotMat)
-    console.log(vts(a))
-    console.log(vts(b))
-    console.log(vts(c))
-    console.log(vec3.equals(b, c))
-    console.groupEnd()
+    // console.group('R')
+    // const a = vec3.transformMat4(vec3.create(), pt0, rotMatX)
+    // const b = vec3.transformMat4(vec3.create(), a, rotMatZ)
+    // const c = vec3.transformMat4(vec3.create(), pt0, rotMat)
+    // console.log(vts(a))
+    // console.log(vts(b))
+    // console.log(vts(c))
+    // console.log(vec3.equals(b, c))
+    // console.groupEnd()
 
     const ptRot = rotMat === null ?
         pt0 :
         vec3.transformMat4(vec3.create(), pt0, rotMat)
 
-    const rotTarget = rotMat === null ?
-        target0 :
-        vec3.transformMat4(vec3.create(), target0, rotMat)
+    // const rotTarget = rotMat === null ?
+    //     target0 :
+    //     vec3.transformMat4(vec3.create(), target0, rotMat)
 
-    console.log("Rotated", vts(rotTarget))
+    // console.log("Rotated", vts(rotTarget))
 
     // 4 - drop Zs
     let pt2 = vec2.fromValues(ptRot[0], ptRot[1])
@@ -177,18 +178,18 @@ function main() {
         (ctx: CanvasRenderingContext2D) => () => {
             ctx.clearRect(0, 0, width, height)
             dbg()
-            // data.features.forEach((f) => {
-            //     const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
-            //     // const mt = getPolygonCoords(viewport, movingCam, v, multi)
-            //     drawPolygonCoords(ctx, c => c.stroke(), mt)
-            // })
-            // ctx.save()
-            // ctx.fillStyle = "blue"
-            // data2.features.forEach((f) => {
-            //     const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
-            //     drawPolygonCoords(ctx, c => {c.stroke();c.fill()}, mt)
-            // })
-            // ctx.restore()
+            data.features.forEach((f) => {
+                const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
+                // const mt = getPolygonCoords(viewport, movingCam, v, multi)
+                drawPolygonCoords(ctx, c => c.stroke(), mt)
+            })
+            ctx.save()
+            ctx.fillStyle = "blue"
+            data2.features.forEach((f) => {
+                const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
+                drawPolygonCoords(ctx, c => { c.stroke(); c.fill() }, mt)
+            })
+            ctx.restore()
 
             const [cx, cy] = getPointViewCoord(viewport, movingCam, movingV, movingV)
             ctx.save()
