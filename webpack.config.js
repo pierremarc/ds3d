@@ -1,6 +1,5 @@
 
-const { resolve, basename } = require('path');
-const webpack = require('webpack');
+const { resolve } = require('path');
 
 const ROOT = resolve(__dirname)
 
@@ -9,6 +8,7 @@ module.exports = {
     mode: 'development',
     entry: {
         index: resolve('index.ts'),
+        test0: resolve('test0.ts'),
     },
 
     output: {

@@ -53,7 +53,9 @@ export interface Camera {
     viewport: vec2;
 }
 
-export function getTranformFunction(cam: Camera) {
+export type Transform = (pt: vec3) => vec2
+
+export function getTranformFunction(cam: Camera): Transform {
 
     const tref = vec3.fromValues(cam.target[0], cam.target[1], cam.target[2] + 10)
     const CT = vec3.sub(vec3.create(), cam.target, cam.pos)
