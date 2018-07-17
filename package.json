@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/gl-matrix": "^2.4.0",
+    "geojson-iots": "^1.0.5",
     "gl-matrix": "^2.6.1",
     "source-map-loader": "^0.2.3",
     "ts-loader": "^4.4.2",

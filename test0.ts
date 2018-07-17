@@ -1,14 +1,12 @@
 import { vec3, vec2 } from 'gl-matrix';
-import { data } from './data';
-import { data2 } from './data2';
 import { Camera, getTranformFunction, Transform } from './mat'
+import { FeatureCollection, Feature, FeatureCollectionIO } from 'geojson-iots'
 
-type FC = typeof data | typeof data2
-type F = typeof data.features[0] | typeof data2.features[0]
+const dataURL = 'http://localhost:8000/selec2.json'
 
 type Finalizer = (c: CanvasRenderingContext2D) => void;
 type Transformer = (pt: vec3) => vec2;
-type Prepper = (c: CanvasRenderingContext2D, f: F) => () => void;
+type Prepper = (c: CanvasRenderingContext2D, f: Feature) => () => void;
 type n3 = [number, number, number];
 
 
@@ -90,19 +88,18 @@ function main() {
             ctx: CanvasRenderingContext2D,
             prep: Prepper,
             fin: Finalizer,
-            fc: FC,
+            fc: FeatureCollection,
         ) => (t: Transform) => {
             const fs = fc.features;
             for (let i = 0; i < fs.length; i++) {
                 const f = fs[i]
                 const geom = f.geometry
-                const gt = geom.type
                 const end = prep(ctx, f);
-                if (gt === 'Polygon') {
+                if (geom.type === 'Polygon') {
                     drawPolygonCoords(ctx, fin,
                         getPolygonCoords(t, geom.coordinates as n3[][]));
                 }
-                else if (gt === 'MultiPolygon') {
+                else if (geom.type === 'MultiPolygon') {
                     drawMultiPolygonCoords(ctx, fin,
                         getMultiPolygonCoords(t, geom.coordinates as n3[][][]));
                 }
@@ -120,8 +117,8 @@ function main() {
     const buildingPrepper: Prepper =
         (c) => {
             c.save();
-            c.strokeStyle = '#666';
-            c.lineWidth = 1;
+            c.strokeStyle = '#669';
+            c.lineWidth = 0.2;
             return () => c.restore();
         };
 
@@ -142,65 +139,85 @@ function main() {
     const context = canvas.getContext('2d')
     document.body.appendChild(canvas);
 
-    const camdbg = document.createElement('div')
-    const targetdbg = document.createElement('div')
-    document.body.appendChild(camdbg)
-    document.body.appendChild(targetdbg)
+
 
     if (context) {
 
-        const target = vec3.fromValues(149000.0, 167742.933, 80)
-        const pos = vec3.fromValues(target[0], target[1] - 500, target[2] + 400)
-        const viewport = vec2.fromValues(width, height)
-        let cam: Camera = { pos, target, viewport }
-
-        const buildingPainter = painter(context, buildingPrepper, buildingFinalizer, data);
-        const roofPainter = painter(context, roofPrepper, roofFinalizer, data2);
-        const renderFrame =
-            (ctx: CanvasRenderingContext2D, t: Transform) => {
-                ctx.clearRect(0, 0, width, height);
-                buildingPainter(t)
-                // roofPainter(t)
-            };
-
-        const fr = 1000 / 60;
-        let lastTS = performance.now()
-        let cont = false
-
-        const render =
-            (ts: number) => {
-                if ((ts - lastTS) > fr) {
-                    lastTS = ts
-
-                    const tranform = getTranformFunction(cam);
-                    renderFrame(context, tranform)
-                    cam = {
-                        ...cam,
-                        pos: vec3.rotateZ(vec3.create(), cam.pos, cam.target, d2r(.6))
-                    }
-                }
-                if (cont) {
-                    requestAnimationFrame(render)
-                }
-            }
-
-
-        const start = document.createElement('div')
-        document.body.appendChild(start)
-        start.innerHTML = 'START'
-        start.addEventListener('click', () => {
-            cont = true;
-            requestAnimationFrame(render)
+        const headers = new Headers();
+        headers.append('Content-type', 'application/json')
+        fetch(dataURL, {
+            // mode: 'no-cors',
+            headers,
         })
+            .then((resp) => {
+                if (resp.ok) {
+                    console.log('Response OK')
+                    return resp.json()
+                }
+                return Promise.reject(resp.status)
+            })
+            .then((data) => FeatureCollectionIO.validate(data, []))
+            .then((dataE) => {
+                dataE.fold(
+                    (err) => console.error(err),
+                    (data) => {
 
-        const stop = document.createElement('div')
-        document.body.appendChild(stop)
-        stop.innerHTML = 'STOP'
-        stop.addEventListener('click', () => cont = false)
+                        const sc = 100;
+                        const target = vec3.fromValues(149000.0 + 500, 167742.933 + 720, 80)
+                        const pos = vec3.fromValues(target[0], target[1] - sc, target[2] + sc)
+                        const viewport = vec2.fromValues(width, height)
+                        let cam: Camera = { pos, target, viewport }
+
+                        const buildingPainter = painter(context, buildingPrepper, buildingFinalizer, data);
+                        // const roofPainter = painter(context, roofPrepper, roofFinalizer, data2);
+                        const renderFrame =
+                            (ctx: CanvasRenderingContext2D, t: Transform) => {
+                                ctx.clearRect(0, 0, width, height);
+                                buildingPainter(t)
+                                // roofPainter(t)
+                            };
+
+                        const fr = 1000 / 60;
+                        let lastTS = performance.now()
+                        let cont = false
+
+                        const render =
+                            (ts: number) => {
+                                if ((ts - lastTS) > fr) {
+                                    lastTS = ts
+
+                                    const tranform = getTranformFunction(cam);
+                                    renderFrame(context, tranform)
+                                    cam = {
+                                        ...cam,
+                                        pos: vec3.rotateZ(vec3.create(), cam.pos, cam.target, d2r(.6))
+                                    }
+                                }
+                                if (cont) {
+                                    requestAnimationFrame(render)
+                                }
+                            }
 
 
-        render(lastTS + 2 * fr)
+                        const start = document.createElement('div')
+                        document.body.appendChild(start)
+                        start.innerHTML = 'START'
+                        start.addEventListener('click', () => {
+                            cont = true;
+                            requestAnimationFrame(render)
+                        })
 
+                        const stop = document.createElement('div')
+                        document.body.appendChild(stop)
+                        stop.innerHTML = 'STOP'
+                        stop.addEventListener('click', () => cont = false)
+
+
+                        render(lastTS + 2 * fr)
+
+                    })
+            })
+            .catch(err => console.error(err))
     }
 
 

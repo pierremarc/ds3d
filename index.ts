@@ -1,6 +1,6 @@
 import { vec3, mat3, mat4, vec2 } from 'gl-matrix';
-import { data } from './data';
-import { data2 } from './data2';
+// import { data } from './data';
+// import { data2 } from './data2';
 
 
 function scalarDiv2(a: vec2, s: number) {
