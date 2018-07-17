@@ -211,9 +211,10 @@ function main() {
             // dbg()
             ctx.fillStyle = "rgba(255,0,0,0)"
             data.features.forEach((f) => {
-                const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
-                // const mt = getPolygonCoords(viewport, movingCam, v, multi)
-                drawPolygonCoords(ctx, c => { c.fill(), c.stroke() }, mt)
+                // const mt = getPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][])
+                // drawPolygonCoords(ctx, c => { c.fill(), c.stroke() }, mt)
+                const mt = getMultiPolygonCoords(viewport, movingCam, movingV, f.geometry.coordinates as n3[][][])
+                drawMultiPolygonCoords(ctx, c => { c.fill(), c.stroke() }, mt)
             })
             ctx.save()
             ctx.fillStyle = "rgba(0,255,33,0.1)"
@@ -276,96 +277,23 @@ function main() {
 
     cs.forEach(({ canvas, vec }, idx) => {
 
-        // const canvas = document.createElement('canvas')
         canvas.setAttribute('width', width.toFixed())
         canvas.setAttribute('height', height.toFixed())
         const context = canvas.getContext('2d')
         document.body.appendChild(canvas);
 
-        const camdbg = document.createElement('div')
-        const targetdbg = document.createElement('div')
-        document.body.appendChild(camdbg)
-        document.body.appendChild(targetdbg)
 
         movingCam = vec
 
-        const dbg = () => {
-            camdbg.innerHTML = `Camera: ${vts(movingCam)}`
-            targetdbg.innerHTML = `Target: ${vts(movingV)}`
-        }
-
 
         if (context) {
-            // context.scale(1, -1)
-            // context.translate(0, -height)
             context.strokeStyle = '#666'
             context.lineWidth = 0.5
 
             const render = renderFrame(context)
 
-            // const up = document.createElement('div')
-            // up.innerHTML = 'up'
-            // document.body.appendChild(up)
-            // up.addEventListener('click', () => {
-            //     // movingCam = rotateAround(movingV, movingCam, d2r(1), xAxis)
-            //     movingCam = vec3.rotateX(vec3.create(), movingCam, movingV, d2r(5))
-            //     render()
-            // })
-            // const down = document.createElement('div')
-            // down.innerHTML = 'down'
-            // document.body.appendChild(down)
-            // down.addEventListener('click', () => {
-            //     // movingCam = rotateAround(movingV, movingCam, d2r(-1), xAxis)
-            //     movingCam = vec3.rotateX(vec3.create(), movingCam, movingV, d2r(-5))
-            //     render()
-            // })
-
-            // const right = document.createElement('div')
-            // right.innerHTML = 'right'
-            // document.body.appendChild(right)
-            // right.addEventListener('click', () => {
-            //     movingCam = vec3.rotateZ(vec3.create(), movingCam, movingV, d2r(-5))
-            //     render()
-            // })
-
-            // const left = document.createElement('div')
-            // left.innerHTML = 'left'
-            // document.body.appendChild(left)
-            // left.addEventListener('click', () => {
-            //     movingCam = vec3.rotateZ(vec3.create(), movingCam, movingV, d2r(5))
-            //     render()
-            // })
-
-
-            // const near = document.createElement('div')
-            // near.innerHTML = 'near'
-            // document.body.appendChild(near)
-            // near.addEventListener('click', () => {
-            //     movingCam = translateAlong(movingCam, movingV, 20)
-            //     render()
-            // })
-
-            // const far = document.createElement('div')
-            // far.innerHTML = 'far'
-            // document.body.appendChild(far)
-            // far.addEventListener('click', () => {
-            //     movingCam = translateAlong(movingCam, movingV, -20)
-            //     render()
-            // })
 
             render()
-
-
-            // const it = setInterval(() => {
-            //     movingCam = vec3.rotateZ(vec3.create(), movingCam, movingV, d2r(.5))
-            //     // vec3.rotateX(movingCam, movingCam, movingV, d2r(-.1))
-            //     render()
-            // }, 30)
-
-            // const stop = document.createElement('div')
-            // stop.innerHTML = 'STOP'
-            // document.body.appendChild(stop)
-            // stop.addEventListener('click', () => clearInterval(it))
         }
 
     })

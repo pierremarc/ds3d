@@ -4,7 +4,7 @@ import { data2 } from './data2';
 import { Camera, getTranformFunction, Transform } from './mat'
 
 type FC = typeof data | typeof data2
-type F = typeof data.features[0]
+type F = typeof data.features[0] | typeof data2.features[0]
 
 type Finalizer = (c: CanvasRenderingContext2D) => void;
 type Transformer = (pt: vec3) => vec2;
@@ -92,13 +92,22 @@ function main() {
             fin: Finalizer,
             fc: FC,
         ) => (t: Transform) => {
-            fc.features.forEach((f) => {
+            const fs = fc.features;
+            for (let i = 0; i < fs.length; i++) {
+                const f = fs[i]
+                const geom = f.geometry
+                const gt = geom.type
                 const end = prep(ctx, f);
-                const geom = f.geometry;
-                drawPolygonCoords(ctx, fin,
-                    getPolygonCoords(t, geom.coordinates as n3[][]));
+                if (gt === 'Polygon') {
+                    drawPolygonCoords(ctx, fin,
+                        getPolygonCoords(t, geom.coordinates as n3[][]));
+                }
+                else if (gt === 'MultiPolygon') {
+                    drawMultiPolygonCoords(ctx, fin,
+                        getMultiPolygonCoords(t, geom.coordinates as n3[][][]));
+                }
                 end();
-            });
+            }
         };
 
 
@@ -140,8 +149,8 @@ function main() {
 
     if (context) {
 
-        const target = vec3.fromValues(149470.383945, 169445.318499, 80)
-        const pos = vec3.fromValues(target[0], target[1] - 30, target[2] + 30)
+        const target = vec3.fromValues(149000.0, 167742.933, 80)
+        const pos = vec3.fromValues(target[0], target[1] - 500, target[2] + 400)
         const viewport = vec2.fromValues(width, height)
         let cam: Camera = { pos, target, viewport }
 
@@ -151,17 +160,46 @@ function main() {
             (ctx: CanvasRenderingContext2D, t: Transform) => {
                 ctx.clearRect(0, 0, width, height);
                 buildingPainter(t)
-                roofPainter(t)
+                // roofPainter(t)
             };
 
-        const it = setInterval(() => {
-            const tranform = getTranformFunction(cam);
-            renderFrame(context, tranform)
-            cam = {
-                ...cam,
-                pos: vec3.rotateZ(vec3.create(), cam.pos, cam.target, d2r(.1))
+        const fr = 1000 / 60;
+        let lastTS = performance.now()
+        let cont = false
+
+        const render =
+            (ts: number) => {
+                if ((ts - lastTS) > fr) {
+                    lastTS = ts
+
+                    const tranform = getTranformFunction(cam);
+                    renderFrame(context, tranform)
+                    cam = {
+                        ...cam,
+                        pos: vec3.rotateZ(vec3.create(), cam.pos, cam.target, d2r(.6))
+                    }
+                }
+                if (cont) {
+                    requestAnimationFrame(render)
+                }
             }
-        }, 16)
+
+
+        const start = document.createElement('div')
+        document.body.appendChild(start)
+        start.innerHTML = 'START'
+        start.addEventListener('click', () => {
+            cont = true;
+            requestAnimationFrame(render)
+        })
+
+        const stop = document.createElement('div')
+        document.body.appendChild(stop)
+        stop.innerHTML = 'STOP'
+        stop.addEventListener('click', () => cont = false)
+
+
+        render(lastTS + 2 * fr)
 
     }
 
