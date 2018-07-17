@@ -53,7 +53,7 @@ export interface Camera {
     viewport: vec2;
 }
 
-export type Transform = (pt: vec3) => vec2
+export type Transform = (pt: vec3, scalePoint?: boolean) => vec2
 
 export function getTranformFunction(cam: Camera): Transform {
 
@@ -82,15 +82,27 @@ export function getTranformFunction(cam: Camera): Transform {
 
     const scale = cam.viewport[0] / dist;
 
-    const t = function transform(pt: vec3) {
+    const t = function transform(pt: vec3, scalePoint = false) {
         const pt0 = vec3.sub(vec3.create(), pt, cam.pos)
         const ptRot = rotMat === null ?
             pt0 :
             vec3.transformMat4(vec3.create(), pt0, rotMat)
+
+        if (!scalePoint) {
+            const pt2d = vec2.transformMat3(
+                vec2.create(),
+                scalarMul2(
+                    vec2.fromValues(ptRot[0], ptRot[1]), scale),
+                zrot)
+
+            return vec2.transformMat3(vec2.create(), pt2d, toCenter)
+        }
+
+        const dscale = cam.viewport[0] / vec3.dist(cam.pos, pt);
         const pt2d = vec2.transformMat3(
             vec2.create(),
             scalarMul2(
-                vec2.fromValues(ptRot[0], ptRot[1]), scale),
+                vec2.fromValues(ptRot[0], ptRot[1]), dscale),
             zrot)
 
         return vec2.transformMat3(vec2.create(), pt2d, toCenter)

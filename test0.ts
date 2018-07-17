@@ -184,7 +184,7 @@ function main() {
             const ps = sortedPlanes(planes, c);
             ps.forEach((p) => {
                 const end = prep(ctx);
-                drawLineRingCoord(ctx, fin, getLineRingCoord(t, p))
+                drawLineRingCoord(ctx, fin, getLineRingCoord((pt: vec3) => t(pt, true), p))
                 end()
             })
             // for (let i = 0; i < fs.length; i++) {
@@ -263,7 +263,7 @@ function main() {
                     (err) => console.error(err),
                     (data) => {
 
-                        const sc = 300;
+                        const sc = 730;
                         const target = vec3.fromValues(149000.0 + 500, 167742.933 + 720, 80)
                         const pos = vec3.fromValues(target[0], target[1] - sc, target[2] + sc)
                         const viewport = vec2.fromValues(width, height)
