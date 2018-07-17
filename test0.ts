@@ -1,12 +1,12 @@
 import { vec3, vec2 } from 'gl-matrix';
 import { Camera, getTranformFunction, Transform } from './mat'
-import { FeatureCollection, Feature, FeatureCollectionIO } from 'geojson-iots'
+import { FeatureCollection, Feature, FeatureCollectionIO, Position } from 'geojson-iots'
 
 const dataURL = 'http://localhost:8000/selec2.json'
 
 type Finalizer = (c: CanvasRenderingContext2D) => void;
 type Transformer = (pt: vec3) => vec2;
-type Prepper = (c: CanvasRenderingContext2D, f: Feature) => () => void;
+type Prepper = (c: CanvasRenderingContext2D) => () => void;
 type n3 = [number, number, number];
 
 
@@ -14,8 +14,20 @@ function scalarDiv2(a: vec2, s: number) {
     return vec2.fromValues(a[0] / s, a[1] / s);
 }
 
+function scalarDiv3(a: vec3, s: number) {
+    return vec3.fromValues(a[0] / s, a[1] / s, a[2] / s);
+}
+
 function scalarMul2(a: vec2, s: number) {
     return vec2.fromValues(a[0] * s, a[1] * s);
+}
+
+function vec3Sum(vs: vec3[]) {
+    return (vs.reduce((acc, v) => vec3.add(vec3.create(), acc, v), vec3.create()))
+}
+
+function vec3Mean(vs: vec3[]) {
+    return scalarDiv3(vec3Sum(vs), vs.length)
 }
 
 const zAxis = vec3.fromValues(0, 0, 1);
@@ -43,17 +55,17 @@ export function reduceMultiPolygon(r: Reducer, m: n3[][][]) {
 // >> utils
 
 
-function getLineRingCoord(t: Transformer, lr: n3[]) {
+function getLineRingCoord(t: Transformer, lr: Plane) {
     return lr.map(pt => t(vec3.fromValues(pt[0], pt[1], pt[2])));
 }
 
-function getPolygonCoords(t: Transformer, p: n3[][]) {
+function getPolygonCoords(t: Transformer, p: PlaneCollection) {
     return p.map(lr => getLineRingCoord(t, lr));
 }
 
-function getMultiPolygonCoords(t: Transformer, m: n3[][][]) {
-    return m.map(p => getPolygonCoords(t, p));
-}
+// function getMultiPolygonCoords(t: Transformer, m: n3[][][]) {
+//     return m.map(p => getPolygonCoords(t, p));
+// }
 
 
 const d2r = (a: number) => a * Math.PI / 180
@@ -77,6 +89,85 @@ function drawMultiPolygonCoords(ctx: CanvasRenderingContext2D, finalizer: Finali
 }
 
 
+
+
+
+
+type Plane = vec3[]
+type PlaneCollection = Plane[]
+
+function clonePlane(p: Plane) {
+    return p.map(v => vec3.fromValues(v[0], v[1], v[2]))
+}
+
+function clonePlaneCollection(ps: PlaneCollection) {
+    return ps.map(clonePlane)
+}
+
+function getZ(plane: Plane, t: Transform) {
+    const z = (p: vec3) => p[2]
+    const init = Number.MAX_VALUE
+    return plane.reduce((acc, v) => Math.min(acc, z(v)), init)
+}
+
+
+function getPlanes(fs: Feature[]): PlaneCollection {
+    const result: PlaneCollection = []
+    fs.forEach((f) => {
+        const geom = f.geometry
+        if (geom.type === 'Polygon') {
+            const cs = geom.coordinates as number[][][];
+            cs.forEach((l) => {
+                const vl: Plane = []
+                l.forEach(c => vl.push(vec3.fromValues(c[0], c[1], c[2])))
+                result.push(vl)
+            })
+        }
+        else if (geom.type === 'MultiPolygon') {
+            const cs = geom.coordinates as number[][][][];
+            cs.forEach((p) => {
+                p.forEach((l) => {
+                    const vl: Plane = []
+                    l.forEach(c => vl.push(vec3.fromValues(c[0], c[1], c[2])))
+                    result.push(vl)
+                })
+            })
+        }
+    })
+
+    return result
+}
+
+
+// function sortedPlanes(ps: PlaneCollection, t: Transform) {
+//     return clonePlaneCollection(ps).sort((a, b) => {
+//         const za = getZ(a, t)
+//         const zb = getZ(b, t)
+//         if (za < zb) {
+//             return -1
+//         } if (za > zb) {
+//             return 1
+//         }
+//         return 0
+//     })
+// }
+
+function sortedPlanes(ps: PlaneCollection, c: vec3) {
+    return clonePlaneCollection(ps).sort((a, b) => {
+        // const da = vec3.dist(c, vec3Mean(a))
+        // const db = vec3.dist(c, vec3Mean(b))
+        const da = a.reduce((acc, v) => Math.max(vec3.dist(c, v), acc), Number.MIN_VALUE)
+        const db = b.reduce((acc, v) => Math.max(vec3.dist(c, v), acc), Number.MIN_VALUE)
+        if (da < db) {
+            return 1
+        } if (da > db) {
+            return -1
+        }
+        return 0
+    })
+}
+
+
 function main() {
     const height = window.innerHeight * 0.9;
     const width = window.innerWidth * 0.9;
@@ -88,27 +179,35 @@ function main() {
             ctx: CanvasRenderingContext2D,
             prep: Prepper,
             fin: Finalizer,
-            fc: FeatureCollection,
-        ) => (t: Transform) => {
-            const fs = fc.features;
-            for (let i = 0; i < fs.length; i++) {
-                const f = fs[i]
-                const geom = f.geometry
-                const end = prep(ctx, f);
-                if (geom.type === 'Polygon') {
-                    drawPolygonCoords(ctx, fin,
-                        getPolygonCoords(t, geom.coordinates as n3[][]));
-                }
-                else if (geom.type === 'MultiPolygon') {
-                    drawMultiPolygonCoords(ctx, fin,
-                        getMultiPolygonCoords(t, geom.coordinates as n3[][][]));
-                }
-                end();
-            }
+            planes: PlaneCollection,
+        ) => (t: Transform, c: vec3) => {
+            const ps = sortedPlanes(planes, c);
+            ps.forEach((p) => {
+                const end = prep(ctx);
+                drawLineRingCoord(ctx, fin, getLineRingCoord(t, p))
+                end()
+            })
+            // for (let i = 0; i < fs.length; i++) {
+            //     const f = fs[i]
+            //     const geom = f.geometry
+            //     const end = prep(ctx, f);
+            //     if (geom.type === 'Polygon') {
+            //         drawPolygonCoords(ctx, fin,
+            //             getPolygonCoords(t, geom.coordinates as n3[][]));
+            //     }
+            //     else if (geom.type === 'MultiPolygon') {
+            //         drawMultiPolygonCoords(ctx, fin,
+            //             getMultiPolygonCoords(t, geom.coordinates as n3[][][]));
+            //     }
+            //     end();
+            // }
         };
 
 
-    const buildingFinalizer: Finalizer = c => c.stroke();
+    const buildingFinalizer: Finalizer = (c) => {
+        c.fill();
+        c.stroke()
+    }
     const roofFinalizer: Finalizer = (c) => {
         c.fill();
         c.stroke()
@@ -117,7 +216,9 @@ function main() {
     const buildingPrepper: Prepper =
         (c) => {
             c.save();
-            c.strokeStyle = '#669';
+            c.strokeStyle = '#1860a0';
+            // c.fillStyle = '#fcfbf7';
+            c.fillStyle = 'rgba(252,251,247,0.6)';
             c.lineWidth = 0.2;
             return () => c.restore();
         };
@@ -147,7 +248,7 @@ function main() {
         headers.append('Content-type', 'application/json')
         fetch(dataURL, {
             // mode: 'no-cors',
-            headers,
+            // headers,
         })
             .then((resp) => {
                 if (resp.ok) {
@@ -162,18 +263,18 @@ function main() {
                     (err) => console.error(err),
                     (data) => {
 
-                        const sc = 100;
+                        const sc = 300;
                         const target = vec3.fromValues(149000.0 + 500, 167742.933 + 720, 80)
                         const pos = vec3.fromValues(target[0], target[1] - sc, target[2] + sc)
                         const viewport = vec2.fromValues(width, height)
                         let cam: Camera = { pos, target, viewport }
 
-                        const buildingPainter = painter(context, buildingPrepper, buildingFinalizer, data);
+                        const buildingPainter = painter(context, buildingPrepper, buildingFinalizer, getPlanes(data.features));
                         // const roofPainter = painter(context, roofPrepper, roofFinalizer, data2);
                         const renderFrame =
                             (ctx: CanvasRenderingContext2D, t: Transform) => {
                                 ctx.clearRect(0, 0, width, height);
-                                buildingPainter(t)
+                                buildingPainter(t, cam.pos)
                                 // roofPainter(t)
                             };
 
